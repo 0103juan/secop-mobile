@@ -39,3 +39,7 @@ flutter build apk --debug
 - Verified by analysis, the widget test, a web build checked in a browser against real data, and a debug APK that builds. It has not been run on a physical phone or an emulator, and there is no iOS target.
 - No offline mode and no saved entities.
 - Only SECOP II: totals are a floor, not all of an entity's contracting.
+
+## License
+
+[MIT](LICENSE) for the code. The fonts in `fonts/` stay under the SIL Open Font License.
