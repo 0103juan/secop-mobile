@@ -13,10 +13,10 @@
 
 ## How it is built
 
-- Three files: `lib/api.dart` (models and HTTP client), `lib/format.dart` (Colombian peso formatting), `lib/main.dart` (two screens).
+- Four files: `lib/api.dart` (models and HTTP client), `lib/format.dart` (Colombian peso formatting), `lib/theme.dart` (the visual identity), `lib/main.dart` (two screens).
 - Plain `StatefulWidget` state and `FutureBuilder`; two packages, `http` and `url_launcher`.
 - The HTTP client is injected, so the widget test runs the whole journey against a fake API: search, open, page through contracts, switch to the year with the mistyped contract and read the warning.
-- Material 3 with light and dark themes from one seed colour.
+- One dark Material 3 theme in `lib/theme.dart`, shared with the web dashboard. The two fonts in `fonts/` are bundled under the SIL Open Font License; their licence texts sit next to them.
 
 ## Run it
 

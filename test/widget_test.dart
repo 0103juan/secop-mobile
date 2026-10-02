@@ -77,7 +77,7 @@ void main() {
     await tester.tap(find.text('DISTRITO DE MEDELLÍN'));
     await tester.pumpAndSettle();
     expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '2024')).selected, isTrue); // latest year
-    expect(find.text(r'$4,3 billones'), findsOneWidget);
+    expect(find.text(r'$4,3 BILLONES'), findsOneWidget);
     expect(find.textContaining('Un solo contrato explica'), findsNothing);
 
     await tester.scrollUntilVisible(find.text('Cargar más contratos'), 300, scrollable: find.byType(Scrollable).first);

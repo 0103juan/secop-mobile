@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'api.dart';
 import 'format.dart';
+import 'theme.dart';
 
 void main() => runApp(SecopApp(api: SecopApi()));
 
@@ -15,12 +16,10 @@ class SecopApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const seed = Color(0xFF0F766E);
     return MaterialApp(
       title: 'Contratos a la vista',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorScheme: .fromSeed(seedColor: seed)),
-      darkTheme: ThemeData(colorScheme: .fromSeed(seedColor: seed, brightness: .dark)),
+      theme: appTheme,
       home: SearchScreen(api: api),
       // Entities have their own route, so that on the web an entity has a link that can be shared.
       onGenerateRoute: (settings) {
@@ -77,15 +76,22 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Contratos a la vista')),
+      appBar: AppBar(
+        title: Text.rich(
+          TextSpan(
+            text: 'CONTRATOS ',
+            children: const [TextSpan(text: 'A LA VISTA', style: TextStyle(color: volt))],
+            style: display.copyWith(fontSize: 26),
+          ),
+        ),
+      ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: SearchBar(
               hintText: 'Busca una entidad pública',
-              leading: const Icon(Icons.search),
-              elevation: const WidgetStatePropertyAll(0),
+              leading: const Icon(Icons.search, color: ash),
               onChanged: _onChanged,
             ),
           ),
@@ -94,8 +100,8 @@ class _SearchScreenState extends State<SearchScreen> {
                 ? ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      Text('¿En qué gasta una entidad pública?', style: theme.textTheme.headlineSmall),
-                      const SizedBox(height: 8),
+                      Text('¿EN QUÉ GASTA UNA ENTIDAD PÚBLICA?', style: display.copyWith(fontSize: 56, height: 0.88)),
+                      const SizedBox(height: 16),
                       Text(
                         'Cuánto contrató cada año, con quién y por qué modalidad, sobre los datos abiertos de SECOP II.',
                         style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -126,8 +132,11 @@ class _SearchScreenState extends State<SearchScreen> {
                           final entity = entities[index];
                           return ListTile(
                             title: Text(entity.name),
-                            subtitle: Text('${entity.department} · ${formatNumber(entity.contracts)} contratos'),
-                            trailing: const Icon(Icons.chevron_right),
+                            subtitle: Text(
+                              '${entity.department} · ${formatNumber(entity.contracts)} contratos',
+                              style: label,
+                            ),
+                            trailing: const Icon(Icons.arrow_forward, color: volt, size: 18),
                             onTap: () => _open(entity),
                           );
                         },
@@ -202,9 +211,8 @@ class _EntityScreenState extends State<EntityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(_name, style: theme.textTheme.titleMedium, maxLines: 2)),
+      appBar: AppBar(toolbarHeight: 72, title: Text(_name.toUpperCase(), style: display.copyWith(fontSize: 22), maxLines: 2)),
       body: FutureBuilder(
         future: _entity,
         builder: (context, snapshot) {
@@ -216,7 +224,7 @@ class _EntityScreenState extends State<EntityScreen> {
             padding: const EdgeInsets.only(bottom: 32),
             children: [
               SizedBox(
-                height: 56,
+                height: 64,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   reverse: true, // the latest year first, at the right edge
@@ -227,6 +235,7 @@ class _EntityScreenState extends State<EntityScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: ChoiceChip(
                           label: Text('${y.year}'),
+                          labelStyle: label.copyWith(fontSize: 13, color: y.year == _year ? ink : bone),
                           selected: y.year == _year,
                           onSelected: (_) => _select(y.year),
                         ),
@@ -263,7 +272,7 @@ class _EntityScreenState extends State<EntityScreen> {
                   child: Text(
                     'Fuente: SECOP II en datos.gov.co. Solo incluye lo publicado en SECOP II.',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: label,
                   ),
                 ),
             ],
@@ -281,7 +290,6 @@ class _OverviewView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final share = overview.dominantShare;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -289,32 +297,45 @@ class _OverviewView extends StatelessWidget {
         if (share > 0)
           Card(
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            color: scheme.tertiaryContainer,
+            color: const Color(0xFF21140D),
+            shape: const Border(
+              left: BorderSide(color: warn, width: 6),
+              top: BorderSide(color: warn),
+              right: BorderSide(color: warn),
+              bottom: BorderSide(color: warn),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Text(
                 'Un solo contrato explica el ${(100 * share).round()} % del total de ${overview.year}. '
                 'Los valores de SECOP se digitan a mano y algunos tienen errores. '
                 'Sin ese contrato, el total sería ${formatCop(overview.total - overview.largest)}.',
-                style: TextStyle(color: scheme.onTertiaryContainer),
+                style: const TextStyle(color: bone, height: 1.35),
               ),
             ),
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: Column(
             children: [
-              Row(
-                children: [
-                  _Kpi('Total contratado', formatCop(overview.total)),
-                  _Kpi('Contratos', formatNumber(overview.contracts)),
-                ],
+              // IntrinsicHeight, so that the two cards of a row are as tall as the taller one.
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _Kpi('Total contratado', formatCop(overview.total), accent: true),
+                    _Kpi('Contratos', formatNumber(overview.contracts)),
+                  ],
+                ),
               ),
-              Row(
-                children: [
-                  _Kpi('Contratistas', formatNumber(overview.suppliers)),
-                  _Kpi('Contrato más grande', formatCop(overview.largest)),
-                ],
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _Kpi('Contratistas', formatNumber(overview.suppliers)),
+                    _Kpi('Contrato más grande', formatCop(overview.largest)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -329,26 +350,26 @@ class _OverviewView extends StatelessWidget {
 }
 
 class _Kpi extends StatelessWidget {
-  const _Kpi(this.label, this.value);
+  const _Kpi(this.title, this.value, {this.accent = false});
 
-  final String label;
+  final String title;
   final String value;
+  final bool accent;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Expanded(
-      child: Card.outlined(
+      child: Card(
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              const SizedBox(height: 4),
+              Text(title.toUpperCase(), style: label),
+              const SizedBox(height: 10),
               FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text(value, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                child: Text(value.toUpperCase(), style: display.copyWith(fontSize: 30, color: accent ? volt : bone)),
               ),
             ],
           ),
@@ -367,9 +388,8 @@ class _RankedRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -378,19 +398,19 @@ class _RankedRow extends StatelessWidget {
             children: [
               Expanded(child: Text(row.name)),
               const SizedBox(width: 12),
-              Text(formatCop(row.total), style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(formatCop(row.total), style: label.copyWith(fontSize: 12, color: bone, letterSpacing: 0)),
             ],
           ),
           const SizedBox(height: 6),
           LinearProgressIndicator(
             value: biggest > 0 ? row.total / biggest : 0,
-            minHeight: 6,
-            borderRadius: BorderRadius.circular(3),
+            minHeight: 5,
+            borderRadius: BorderRadius.zero,
           ),
           const SizedBox(height: 4),
           Text(
             '${formatNumber(row.contracts)} ${row.contracts == 1 ? 'contrato' : 'contratos'}',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: label.copyWith(fontSize: 10),
           ),
         ],
       ),
@@ -414,7 +434,7 @@ class _ContractTile extends StatelessWidget {
         maxLines: 3,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Text(formatCop(contract.value), style: const TextStyle(fontWeight: FontWeight.w700)),
+      trailing: Text(formatCop(contract.value), style: label.copyWith(fontSize: 12, color: volt, letterSpacing: 0)),
       // The API only passes through links to secop.gov.co; the expediente opens in the browser.
       onTap: url == null ? null : () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
     );
@@ -428,13 +448,9 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 6),
-      child: Text(
-        text.toUpperCase(),
-        style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant, letterSpacing: 0.8),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 28, 16, 8),
+      child: Text(text.toUpperCase(), style: label.copyWith(color: volt)),
     );
   }
 }
