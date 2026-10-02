@@ -14,7 +14,13 @@ final _client = MockClient((request) async {
   final Object body = switch (request.url.path) {
     '/entities' => {
       'items': [
-        {'nit': 890905211, 'name': 'DISTRITO DE MEDELLÍN', 'department': 'Antioquia', 'level': 'Territorial', 'contracts': 20384},
+        {
+          'nit': 890905211,
+          'name': 'DISTRITO DE MEDELLÍN',
+          'department': 'Antioquia',
+          'level': 'Territorial',
+          'contracts': 20384,
+        },
       ],
     },
     '/entities/890905211' => {
@@ -43,7 +49,10 @@ final _client = MockClient((request) async {
         {
           'id': 'CO1.PCCNTR.${request.url.queryParameters['page']}',
           'object': 'Contrato de empréstito ${request.url.queryParameters['page']}',
-          'supplier': 'BANCO ${request.url.queryParameters['page']}',
+          // A filtered list shows a different supplier, so the test can tell the two requests apart.
+          'supplier': request.url.queryParameters['modality'] == 'Contratación directa'
+              ? 'PROVEEDOR DIRECTO'
+              : 'BANCO ${request.url.queryParameters['page']}',
           'modality': 'Contratación directa',
           'signedOn': '2024-11-21',
           'value': 491372098658,
@@ -67,7 +76,11 @@ void main() {
   });
 
   testWidgets('search, open an entity, page through contracts, and get warned about a mistyped year', (tester) async {
-    await tester.pumpWidget(SecopApp(api: SecopApi(client: _client, baseUrl: 'http://api.test')));
+    await tester.pumpWidget(
+      SecopApp(
+        api: SecopApi(client: _client, baseUrl: 'http://api.test'),
+      ),
+    );
 
     await tester.enterText(find.byType(TextField), 'medellin');
     await tester.pump(const Duration(milliseconds: 300)); // the search waits for a pause in typing
@@ -87,7 +100,27 @@ void main() {
     expect(find.text('BANCO 2'), findsOneWidget);
     expect(find.text('Cargar más contratos'), findsNothing); // the second page was the last
 
-    await tester.scrollUntilVisible(find.widgetWithText(ChoiceChip, '2019'), -300, scrollable: find.byType(Scrollable).first);
+    // Tapping a modality lists only its contracts; deleting the chip brings the whole year back.
+    await tester.scrollUntilVisible(
+      find.text('Contratación directa').first,
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Contratación directa').first);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('PROVEEDOR DIRECTO'), 300, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Solo Contratación directa'), findsOneWidget);
+    expect(find.text('BANCO 1'), findsNothing);
+    await tester.tap(find.byTooltip('Quitar filtro'));
+    await tester.pumpAndSettle();
+    expect(find.text('Solo Contratación directa'), findsNothing);
+    expect(find.text('BANCO 1'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ChoiceChip, '2019'),
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.widgetWithText(ChoiceChip, '2019'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Un solo contrato explica el 100 % del total de 2019'), findsOneWidget);

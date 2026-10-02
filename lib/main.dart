@@ -25,7 +25,10 @@ class SecopApp extends StatelessWidget {
       onGenerateRoute: (settings) {
         final nit = int.tryParse(_entityRoute.firstMatch(settings.name ?? '')?.group(1) ?? '');
         if (nit == null) return null;
-        return MaterialPageRoute<void>(settings: settings, builder: (_) => EntityScreen(api: api, nit: nit));
+        return MaterialPageRoute<void>(
+          settings: settings,
+          builder: (_) => EntityScreen(api: api, nit: nit),
+        );
       },
     );
   }
@@ -80,7 +83,12 @@ class _SearchScreenState extends State<SearchScreen> {
         title: Text.rich(
           TextSpan(
             text: 'CONTRATOS ',
-            children: const [TextSpan(text: 'A LA VISTA', style: TextStyle(color: volt))],
+            children: const [
+              TextSpan(
+                text: 'A LA VISTA',
+                style: TextStyle(color: volt),
+              ),
+            ],
             style: display.copyWith(fontSize: 26),
           ),
         ),
@@ -170,6 +178,7 @@ class _EntityScreenState extends State<EntityScreen> {
   });
   String _name = '';
   int? _year;
+  String? _modality; // when set, only that modality's contracts are listed
   Future<Overview>? _overview;
   final List<Contract> _contracts = [];
   int _page = 0;
@@ -180,7 +189,20 @@ class _EntityScreenState extends State<EntityScreen> {
   void _select(int year) {
     setState(() {
       _year = year;
+      _modality = null; // another year may not have that modality
       _overview = widget.api.overview(widget.nit, year);
+    });
+    _restartContracts();
+  }
+
+  /// Tapping the modality that is already selected removes the filter.
+  void _filter(String? modality) {
+    setState(() => _modality = modality == _modality ? null : modality);
+    _restartContracts();
+  }
+
+  void _restartContracts() {
+    setState(() {
       _contracts.clear();
       _page = 0;
       _hasMore = false;
@@ -190,29 +212,35 @@ class _EntityScreenState extends State<EntityScreen> {
 
   Future<void> _loadContracts() async {
     final year = _year!;
+    final modality = _modality;
+    // False once the user has moved to another year or filter while this request was in flight.
+    bool current() => mounted && year == _year && modality == _modality;
     setState(() {
       _loadingContracts = true;
       _contractsError = null;
     });
     try {
-      final page = await widget.api.contracts(widget.nit, year, _page + 1);
-      if (!mounted || year != _year) return; // the user moved to another year meanwhile
+      final page = await widget.api.contracts(widget.nit, year, _page + 1, modality: modality);
+      if (!current()) return;
       setState(() {
         _contracts.addAll(page.items);
         _page++;
         _hasMore = page.hasMore;
       });
     } on ApiException catch (error) {
-      if (mounted && year == _year) setState(() => _contractsError = error.message);
+      if (current()) setState(() => _contractsError = error.message);
     } finally {
-      if (mounted && year == _year) setState(() => _loadingContracts = false);
+      if (current()) setState(() => _loadingContracts = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(toolbarHeight: 72, title: Text(_name.toUpperCase(), style: display.copyWith(fontSize: 22), maxLines: 2)),
+      appBar: AppBar(
+        toolbarHeight: 72,
+        title: Text(_name.toUpperCase(), style: display.copyWith(fontSize: 22), maxLines: 2),
+      ),
       body: FutureBuilder(
         future: _entity,
         builder: (context, snapshot) {
@@ -248,16 +276,34 @@ class _EntityScreenState extends State<EntityScreen> {
                 builder: (context, snapshot) {
                   if (snapshot.hasError) return _Message('${snapshot.error}');
                   if (snapshot.connectionState != ConnectionState.done) {
-                    return const Padding(padding: EdgeInsets.all(48), child: Center(child: CircularProgressIndicator()));
+                    return const Padding(
+                      padding: EdgeInsets.all(48),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
                   }
-                  return _OverviewView(snapshot.data!);
+                  return _OverviewView(snapshot.data!, selectedModality: _modality, onModality: _filter);
                 },
               ),
               _SectionTitle('Contratos de $_year, del más grande al más pequeño'),
+              if (_modality != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: InputChip(
+                      label: Text('Solo $_modality'),
+                      onDeleted: () => _filter(null),
+                      deleteButtonTooltipMessage: 'Quitar filtro',
+                    ),
+                  ),
+                ),
               for (final contract in _contracts) _ContractTile(contract),
               if (_contractsError != null) _Message(_contractsError!),
               if (_loadingContracts)
-                const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()))
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                )
               else if (_hasMore || _contractsError != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -284,9 +330,11 @@ class _EntityScreenState extends State<EntityScreen> {
 }
 
 class _OverviewView extends StatelessWidget {
-  const _OverviewView(this.overview);
+  const _OverviewView(this.overview, {required this.selectedModality, required this.onModality});
 
   final Overview overview;
+  final String? selectedModality;
+  final ValueChanged<String> onModality;
 
   @override
   Widget build(BuildContext context) {
@@ -343,7 +391,14 @@ class _OverviewView extends StatelessWidget {
         const _SectionTitle('Mayores contratistas'),
         for (final supplier in overview.topSuppliers) _RankedRow(supplier, overview.topSuppliers.first.total),
         const _SectionTitle('Por modalidad'),
-        for (final modality in overview.byModality) _RankedRow(modality, overview.byModality.first.total),
+        // A modality is a filter: tapping it lists only its contracts below.
+        for (final modality in overview.byModality)
+          _RankedRow(
+            modality,
+            overview.byModality.first.total,
+            selected: modality.name == selectedModality,
+            onTap: () => onModality(modality.name),
+          ),
       ],
     );
   }
@@ -381,38 +436,45 @@ class _Kpi extends StatelessWidget {
 
 /// A name, its amount, and a bar as long as its share of the biggest row.
 class _RankedRow extends StatelessWidget {
-  const _RankedRow(this.row, this.biggest);
+  const _RankedRow(this.row, this.biggest, {this.selected = false, this.onTap});
 
   final Ranked row;
   final double biggest;
+  final bool selected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: Text(row.name)),
-              const SizedBox(width: 12),
-              Text(formatCop(row.total), style: label.copyWith(fontSize: 12, color: bone, letterSpacing: 0)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          LinearProgressIndicator(
-            value: biggest > 0 ? row.total / biggest : 0,
-            minHeight: 5,
-            borderRadius: BorderRadius.zero,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${formatNumber(row.contracts)} ${row.contracts == 1 ? 'contrato' : 'contratos'}',
-            style: label.copyWith(fontSize: 10),
-          ),
-        ],
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(row.name, style: selected ? const TextStyle(color: volt) : null),
+                ),
+                const SizedBox(width: 12),
+                Text(formatCop(row.total), style: label.copyWith(fontSize: 12, color: bone, letterSpacing: 0)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            LinearProgressIndicator(
+              value: biggest > 0 ? row.total / biggest : 0,
+              minHeight: 5,
+              borderRadius: BorderRadius.zero,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${formatNumber(row.contracts)} ${row.contracts == 1 ? 'contrato' : 'contratos'}',
+              style: label.copyWith(fontSize: 10),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -146,6 +146,8 @@ class SecopApi {
   Future<Overview> overview(int nit, int year) async =>
       Overview.fromJson(await _get('/entities/$nit/overview', {'year': '$year'}));
 
-  Future<ContractPage> contracts(int nit, int year, int page) async =>
-      ContractPage.fromJson(await _get('/entities/$nit/contracts', {'year': '$year', 'page': '$page'}));
+  /// [modality] must be one of the overview's `byModality` names; the API refuses anything else.
+  Future<ContractPage> contracts(int nit, int year, int page, {String? modality}) async => ContractPage.fromJson(
+    await _get('/entities/$nit/contracts', {'year': '$year', 'page': '$page', 'modality': ?modality}),
+  );
 }

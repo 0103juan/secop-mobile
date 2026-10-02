@@ -7,6 +7,7 @@
 - Search the 5,800 entities as you type (the request waits for a pause in typing).
 - Open an entity on its latest year with contracts; switch year with chips.
 - Indicators, ranked suppliers and modalities, then the contracts, loaded page by page.
+- Tapping a modality lists only that modality's contracts; a chip shows the filter and removes it.
 - Tapping a contract opens its file on SECOP in the browser.
 - The same safeguard as the web dashboard: when one contract explains half or more of the year's total, a card says so and shows the total without it, because values are typed by hand at the source.
 - On the web, every entity has its own URL (`#/entidad/890905211`).
