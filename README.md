@@ -1,5 +1,7 @@
 # secop-mobile
 
+[![CI](https://github.com/0103juan/secop-mobile/actions/workflows/ci.yml/badge.svg)](https://github.com/0103juan/secop-mobile/actions/workflows/ci.yml)
+
 **Contratos a la vista** on a phone: search a Colombian state entity and see what it contracted in a year, its top suppliers, the modalities, and the contracts themselves. A Flutter client of [secop-api](../secop-api), for Android and the web. The interface is in Spanish; this README is in English.
 
 ## What it does
